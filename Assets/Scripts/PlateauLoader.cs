@@ -30,13 +30,12 @@ public static class PlateauLoader
             new Vector3((float)(-cosLo), (float)(-cosLa * sinLo), (float)(sinLa * sinLo)),
             new Vector3(0f, (float)sinLa, (float)cosLa));
 
-        foreach (var tile in KeioData.LoadPlateauManifest())
+        foreach (var tile in await KeioData.LoadPlateauManifest())
         {
-            var path = System.IO.Path.Combine(Application.streamingAssetsPath, "keio", "plateau", tile.file);
             // UninterruptedDeferAgent: 起動時一括ロードなのでフレーム分割不要(Editorバッチでも動く)
             var gltf = new GltfImport(deferAgent: new UninterruptedDeferAgent(),
                 logger: new GLTFast.Logging.ConsoleLogger());
-            var bytes = StripCesiumRtc(System.IO.File.ReadAllBytes(path));
+            var bytes = StripCesiumRtc(await KeioData.FetchBytes("plateau/" + tile.file));
             if (!await gltf.LoadGltfBinary(bytes))
             {
                 Debug.LogWarning($"PLATEAU tile load failed: {tile.file}");

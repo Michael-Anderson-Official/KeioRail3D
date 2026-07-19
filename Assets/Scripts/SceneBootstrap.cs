@@ -10,8 +10,8 @@ public class SceneBootstrap : MonoBehaviour
 
     async void Start()
     {
-        var seg = KeioData.LoadSegment();
-        var grid = KeioData.LoadTerrain();
+        var seg = await KeioData.LoadSegment();
+        var grid = await KeioData.LoadTerrain();
 
         TerrainBuilder.Build(grid, terrainMaterial).transform.SetParent(transform, false);
         RailBuilder.Build(seg, grid, railMaterial).transform.SetParent(transform, false);
@@ -66,7 +66,7 @@ public class TrainMover : MonoBehaviour
     }
 }
 
-// マウスドラッグで回転・ホイールでズームの簡易オービットカメラ
+// ドラッグ(1本指)で回転・ホイール/ピンチでズームの簡易オービットカメラ
 public class OrbitCamera : MonoBehaviour
 {
     public Vector3 target = new(0, 45, 0);
@@ -75,7 +75,15 @@ public class OrbitCamera : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButton(0))
+        if (Input.touchCount >= 2)
+        {
+            var t0 = Input.GetTouch(0);
+            var t1 = Input.GetTouch(1);
+            float cur = (t0.position - t1.position).magnitude;
+            float prev = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
+            if (cur > 1f) distance *= prev / cur;
+        }
+        else if (Input.GetMouseButton(0))
         {
             yaw += Input.GetAxis("Mouse X") * 3f;
             pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * 3f, 5f, 89f);

@@ -1,10 +1,13 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 // rail-sim からエクスポートした JSON(StreamingAssets/keio)の読み込み。
 // 座標系: エクスポート元は three.js 系(x=東, z=南)。Unity では z=北 なので z を反転する。
+// WebGLではStreamingAssetsがURLになりFile IO不可のため、取得はFetchText/FetchBytes経由。
+// (Editor/スタンドアロンではFile IOで同期完了するので、EditorからResultで受けても安全)
 public static class KeioData
 {
     public class Segment
@@ -52,12 +55,26 @@ public static class KeioData
 
     static string Dir => Path.Combine(Application.streamingAssetsPath, "keio");
 
-    static JToken Load(string name) =>
-        JToken.Parse(File.ReadAllText(Path.Combine(Dir, name)));
-
-    public static Segment LoadSegment()
+    public static async Task<byte[]> FetchBytes(string relPath)
     {
-        var j = Load("segment.json");
+#if UNITY_WEBGL && !UNITY_EDITOR
+        using var req = UnityEngine.Networking.UnityWebRequest.Get(Dir + "/" + relPath);
+        var op = req.SendWebRequest();
+        while (!op.isDone) await Task.Yield();
+        if (req.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
+            throw new IOException($"fetch failed: {relPath}: {req.error}");
+        return req.downloadHandler.data;
+#else
+        return await Task.FromResult(File.ReadAllBytes(Path.Combine(Dir, relPath)));
+#endif
+    }
+
+    static async Task<JToken> Load(string name) =>
+        JToken.Parse(System.Text.Encoding.UTF8.GetString(await FetchBytes(name)));
+
+    public static async Task<Segment> LoadSegment()
+    {
+        var j = await Load("segment.json");
         var seg = new Segment
         {
             centerLat = (double)j["center"]["lat"],
@@ -70,9 +87,9 @@ public static class KeioData
         return seg;
     }
 
-    public static TerrainGrid LoadTerrain()
+    public static async Task<TerrainGrid> LoadTerrain()
     {
-        var j = Load("terrain.json");
+        var j = await Load("terrain.json");
         var t = new TerrainGrid
         {
             ox = (float)j["ox"], oz = (float)j["oz"], cell = (float)j["cell"],
@@ -84,10 +101,10 @@ public static class KeioData
         return t;
     }
 
-    public static List<PlateauTile> LoadPlateauManifest()
+    public static async Task<List<PlateauTile>> LoadPlateauManifest()
     {
         var list = new List<PlateauTile>();
-        foreach (var j in (JArray)Load("plateau_manifest.json")["items"])
+        foreach (var j in (JArray)(await Load("plateau_manifest.json"))["items"])
         {
             list.Add(new PlateauTile
             {

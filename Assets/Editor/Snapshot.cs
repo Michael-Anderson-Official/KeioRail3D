@@ -19,8 +19,8 @@ public static class Snapshot
     public static void Run()
     {
         EditorSceneManager.OpenScene("Assets/Scenes/Main.unity");
-        seg = KeioData.LoadSegment();
-        grid = KeioData.LoadTerrain();
+        seg = KeioData.LoadSegment().Result;   // Editorでは File IO なので同期完了する
+        grid = KeioData.LoadTerrain().Result;
 
         RenderSettings.ambientMode = AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.5f);
