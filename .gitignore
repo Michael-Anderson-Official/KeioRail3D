@@ -1,0 +1,24 @@
+# Unity standard ignores
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE
+.vs/
+.idea/
+*.csproj
+*.sln
+*.user
+
+# OS
+Thumbs.db
+.DS_Store
+
+# バッチ検証の出力(生成物)
+/Snapshots/
