@@ -5,7 +5,9 @@ using UnityEngine;
 public class SceneBootstrap : MonoBehaviour
 {
     public Material terrainMaterial;
+    public Material ballastMaterial;
     public Material railMaterial;
+    public Material tieMaterial;
     public Material trainMaterial;
     public Material embankmentMaterial;
     public Material deckMaterial;
@@ -23,14 +25,14 @@ public class SceneBootstrap : MonoBehaviour
         var profile = RailProfile.Build(seg, grid);
 
         TerrainBuilder.Build(grid, terrainMaterial).transform.SetParent(transform, false);
-        RailBuilder.Build(seg, profile, railMaterial).transform.SetParent(transform, false);
+        RailBuilder.BuildTracks(profile, ballastMaterial, railMaterial, tieMaterial).transform.SetParent(transform, false);
         RailBuilder.BuildViaduct(seg, grid, profile, embankmentMaterial, deckMaterial, pierMaterial)
             ?.transform.SetParent(transform, false);
         RailBuilder.BuildSakurajosuiStation(seg, profile, platformMaterial, canopyMaterial,
             stationWallMaterial, stationGlassMaterial, stationRoofMaterial).transform.SetParent(transform, false);
 
-        // 列車(仮: 20m×2.8m×3.5mの箱)
-        var path = RailBuilder.ResampledPath(seg, profile);
+        // 列車(仮: 20m×2.8m×3.5mの箱)。下り本線(DnThrough)に沿って走らせる
+        var path = RailBuilder.ResampledPath(profile, RailProfile.Track.DnThrough);
         var train = GameObject.CreatePrimitive(PrimitiveType.Cube);
         train.name = "Train";
         train.transform.localScale = new Vector3(2.8f, 3.5f, 20f);

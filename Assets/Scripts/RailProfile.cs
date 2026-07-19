@@ -11,11 +11,17 @@ public class RailProfile
     double totalLen;
     float[] smoothed;   // groundProfile用の平滑化サンプル(STEP間隔)
     int nSteps;
+    float uKami, uSakura, uHachi;
 
     public float URampStart { get; private set; }
     public float URampEnd { get; private set; }
     public float DeckHeight { get; private set; }
     public float TotalLen => (float)totalLen;
+    public float USakura => uSakura;   // 桜上水(待避駅)
+    public float UHachi => uHachi;     // 八幡山(待避駅)
+
+    // game.js の4本の線路(上り/下り本線・上り/下り待避線)
+    public enum Track { UpThrough, DnThrough, UpLoop, DnLoop }
 
     public static RailProfile Build(KeioData.Segment seg, KeioData.TerrainGrid grid)
     {
@@ -48,7 +54,10 @@ public class RailProfile
             p.smoothed[i] = s / c;
         }
 
-        float uKami = NearestU(p.pts, p.cum, p.totalLen, seg.stations["kamikitazawa"]);
+        p.uKami = NearestU(p.pts, p.cum, p.totalLen, seg.stations["kamikitazawa"]);
+        p.uSakura = NearestU(p.pts, p.cum, p.totalLen, seg.stations["sakurajosui"]);
+        p.uHachi = NearestU(p.pts, p.cum, p.totalLen, seg.stations["hachimanyama"]);
+        float uKami = p.uKami;
         float uTagFullHeight = Mathf.Min(1f, (float)(2270.0 / p.totalLen));   // OSM実測: この位置は橋として存在
         float uKamiPlatformEnd = Mathf.Min(1f, uKami + (float)(130.0 / p.totalLen)); // 上北沢ホーム端+余裕
         const float rampLen = 300f;
@@ -101,6 +110,43 @@ public class RailProfile
     }
 
     static float Smoothstep(float t) { t = Mathf.Clamp01(t); return t * t * (3f - 2f * t); }
+
+    // 中心線からの横オフセット(three系: +が上り側)。本線は上北沢の島式ホーム分だけ外へ開き(KamiBump)、
+    // 待避線はさらに桜上水・八幡山の駅部分だけ外へふくらむ(LoopBump)。game.js offsetCurveの移植
+    public float TrackOffset(Track track, float u)
+    {
+        float through = 2.2f + KamiBump(u);
+        switch (track)
+        {
+            case Track.UpThrough: return through;
+            case Track.DnThrough: return -through;
+            case Track.UpLoop: return through + LoopBump(u);
+            default: return -(through + LoopBump(u));
+        }
+    }
+
+    // 桜上水・八幡山(待避駅)の島式ホームぶんの、本線⇔待避線の中間位置(側は呼び出し側で符号を付ける)
+    public float PlatformMid(float u) => 2.2f + KamiBump(u) + LoopBump(u) * 0.5f;
+
+    // 上北沢の島式ホームぶんのふくらみ:駅の前後で上下線が外へ開いて島を挟む(210m=10両編成全長+60mイーズ)
+    float KamiBump(float u)
+    {
+        float d = Mathf.Abs(u - uKami) * TotalLen;
+        if (d < 105f) return 1.3f;
+        if (d < 165f) return Smoothstep(1f - (d - 105f) / 60f) * 1.3f;
+        return 0f;
+    }
+
+    // 待避線のふくらみ:窓の外は本線と同じ、駅の中央で外へ開く(passing loop)。桜上水と八幡山の2駅が待避駅
+    float LoopBump(float u) => LoopBumpAt(u, uSakura) + LoopBumpAt(u, uHachi);
+
+    float LoopBumpAt(float u, float uStn)
+    {
+        float d = Mathf.Abs(u - uStn) * TotalLen;
+        if (d < 110f) return 6.5f;
+        if (d < 170f) return Smoothstep(1f - (d - 110f) / 60f) * 6.5f;
+        return 0f;
+    }
 
     static float NearestU(Vector2[] pts, double[] cum, double totalLen, Vector2 target)
     {

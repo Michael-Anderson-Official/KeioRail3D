@@ -1,24 +1,100 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// SEGMENT.points から線路リボン(複線相当の帯)と、高架区間の築堤・桁・橋脚を生成する。
+// SEGMENT.points から線路4本(上り/下り本線・上り/下り待避線)と、高架区間の築堤・桁・橋脚を生成する。
 // 高さは RailProfile.RailY(u) (縦断勾配+八幡山高架) に従う。rail-sim game.js の
-// buildTrack()/buildViaduct() の移植(意匠は単純化した箱の連なりのまま踏襲)。
+// buildTrack()/offsetCurve()/buildViaduct() の移植(意匠は単純化した箱の連なりのまま踏襲)。
 public static class RailBuilder
 {
-    public const float Width = 8f; // 複線分の帯幅
+    const float Gauge = 1.6f, RailHalfWidth = 0.08f, BallastHalfWidth = 1.9f;
+    const float RailLift = 0.15f, TieLift = 0.06f, TieSpacing = 3f;
+    static readonly Vector3 TieScale = new(2.5f, 0.12f, 0.28f);
 
-    public static GameObject Build(KeioData.Segment seg, RailProfile profile, Material mat)
+    // 4本すべて(上り/下り本線・上り/下り待避線)をまとめて構築。待避線は本線と重なる区間を省き、
+    // 桜上水・八幡山それぞれの窓(loopBumpが非ゼロの範囲、駅中心±170m)だけを別ジオメトリとして生成する
+    // (game.jsは全長を4本重ねて描画しているが、Unity側は無駄な重複ジオメトリ/Zファイティングを避ける)
+    public static GameObject BuildTracks(RailProfile profile, Material ballastMat, Material railMat, Material tieMat)
     {
-        var pts = seg.points;
-        var center = new List<Vector3>(pts.Count);
-        for (int i = 0; i < pts.Count; i++)
+        var root = new GameObject("Tracks");
+        BuildTrack("UpThrough", profile, RailProfile.Track.UpThrough, 0f, 1f, ballastMat, railMat, tieMat)
+            .transform.SetParent(root.transform, false);
+        BuildTrack("DnThrough", profile, RailProfile.Track.DnThrough, 0f, 1f, ballastMat, railMat, tieMat)
+            .transform.SetParent(root.transform, false);
+
+        const float loopWindow = 170f;
+        foreach (var (label, uStn) in new[] { ("Sakurajosui", profile.USakura), ("Hachimanyama", profile.UHachi) })
         {
-            var p = pts[i];
-            float y = profile.RailY(profile.UAtIndex(i));
-            center.Add(new Vector3(p.x, y, -p.y)); // three z(南) → Unity z(北)
+            float uStart = Mathf.Max(0f, uStn - loopWindow / profile.TotalLen);
+            float uEnd = Mathf.Min(1f, uStn + loopWindow / profile.TotalLen);
+            BuildTrack($"UpLoop_{label}", profile, RailProfile.Track.UpLoop, uStart, uEnd, ballastMat, railMat, tieMat)
+                .transform.SetParent(root.transform, false);
+            BuildTrack($"DnLoop_{label}", profile, RailProfile.Track.DnLoop, uStart, uEnd, ballastMat, railMat, tieMat)
+                .transform.SetParent(root.transform, false);
         }
-        return BuildRibbon("RailLine", center, Width * 0.5f, mat);
+        return root;
+    }
+
+    // 1本の線路:バラスト帯+レール2本+枕木(インスタンス相当、CombineMeshesで集約)
+    static GameObject BuildTrack(string name, RailProfile profile, RailProfile.Track track, float uStart, float uEnd,
+        Material ballastMat, Material railMat, Material tieMat)
+    {
+        int n = Mathf.Max(2, Mathf.RoundToInt((uEnd - uStart) * profile.TotalLen / 6f));
+        var center = new List<Vector3>(n + 1);
+        for (int i = 0; i <= n; i++)
+        {
+            float u = Mathf.Lerp(uStart, uEnd, (float)i / n);
+            var pos2 = profile.PositionAt(u) + NormalAt(profile, u) * profile.TrackOffset(track, u);
+            center.Add(new Vector3(pos2.x, profile.RailY(u), -pos2.y));
+        }
+
+        var root = new GameObject(name);
+        BuildRibbon("Ballast", center, BallastHalfWidth, ballastMat).transform.SetParent(root.transform, false);
+        foreach (float rOff in new[] { Gauge * 0.5f, -Gauge * 0.5f })
+            BuildRibbon("Rail", OffsetParallel(center, rOff, RailLift), RailHalfWidth, railMat)
+                .transform.SetParent(root.transform, false);
+
+        var unitCube = GetUnitCubeMesh();
+        var tieCombine = new List<CombineInstance>();
+        float carried = 0f;
+        for (int i = 1; i < center.Count; i++)
+        {
+            Vector3 a = center[i - 1], b = center[i];
+            float segLen = Vector3.Distance(a, b);
+            if (segLen < 1e-6f) continue;
+            var rot = Quaternion.LookRotation((b - a).normalized);
+            for (float d = TieSpacing - carried; d <= segLen; d += TieSpacing)
+                tieCombine.Add(new CombineInstance
+                {
+                    mesh = unitCube,
+                    transform = Matrix4x4.TRS(Vector3.Lerp(a, b, d / segLen) + Vector3.up * TieLift, rot, TieScale)
+                });
+            carried = (carried + segLen) % TieSpacing;
+        }
+        AddCombined(root.transform, "Ties", tieCombine, tieMat);
+        return root;
+    }
+
+    // 中心線(three系)のu位置における法線(xz平面、正規化済み)。offsetCurveの nx,nz の移植
+    static Vector2 NormalAt(RailProfile profile, float u)
+    {
+        var tan = profile.TangentAt(u);
+        return new Vector2(-tan.y, tan.x);
+    }
+
+    // center点列に平行な帯を、各点の局所接線から求めた法線方向へ横+縦オフセットして作る(レール2本用)
+    static List<Vector3> OffsetParallel(List<Vector3> center, float lateralOff, float verticalOff)
+    {
+        var outPts = new List<Vector3>(center.Count);
+        for (int i = 0; i < center.Count; i++)
+        {
+            Vector3 dir = i == 0 ? center[1] - center[0]
+                : i == center.Count - 1 ? center[i] - center[i - 1]
+                : center[i + 1] - center[i - 1];
+            dir.y = 0;
+            Vector3 side = Vector3.Cross(Vector3.up, dir.normalized) * lateralOff;
+            outPts.Add(center[i] + side + Vector3.up * verticalOff);
+        }
+        return outPts;
     }
 
     // 中心点列に沿った平帯メッシュ(線路帯・ホーム・上屋の共通実装)
@@ -53,31 +129,18 @@ public static class RailBuilder
         return go;
     }
 
-    // 弧長パラメータ u(0..1) → 位置。列車走行用
-    public static List<Vector3> ResampledPath(KeioData.Segment seg, RailProfile profile, float step = 10f)
+    // 弧長パラメータ u(0..1) → 位置。列車走行用。track指定時はその線路の横オフセットに沿う
+    public static List<Vector3> ResampledPath(RailProfile profile, RailProfile.Track? track = null, float step = 10f)
     {
-        var raw = new List<Vector3>(seg.points.Count);
-        for (int i = 0; i < seg.points.Count; i++)
+        int n = Mathf.Max(2, Mathf.RoundToInt(profile.TotalLen / step));
+        var outPts = new List<Vector3>(n + 1);
+        for (int i = 0; i <= n; i++)
         {
-            var p = seg.points[i];
-            float y = profile.RailY(profile.UAtIndex(i));
-            raw.Add(new Vector3(p.x, y, -p.y));
+            float u = (float)i / n;
+            var pos2 = profile.PositionAt(u);
+            if (track.HasValue) pos2 += NormalAt(profile, u) * profile.TrackOffset(track.Value, u);
+            outPts.Add(new Vector3(pos2.x, profile.RailY(u), -pos2.y));
         }
-        var outPts = new List<Vector3> { raw[0] };
-        float carry = 0f;
-        for (int i = 1; i < raw.Count; i++)
-        {
-            Vector3 a = raw[i - 1], b = raw[i];
-            float len = Vector3.Distance(a, b);
-            float d = step - carry;
-            while (d <= len)
-            {
-                outPts.Add(Vector3.Lerp(a, b, d / len));
-                d += step;
-            }
-            carry = (carry + len) % step;
-        }
-        outPts.Add(raw[^1]);
         return outPts;
     }
 
@@ -141,7 +204,7 @@ public static class RailBuilder
 
     // 桜上水:2面4線の島式ホーム2面+線路をまたぐ橋上駅舎
     // (rail-sim game.jsのbuildIslandLoopStation/buildBridgeStationHouseの移植。
-    // 複線分離前の簡易表現のため、待避線ふくらみ(loopBump)は使わずホーム位置を固定オフセットで近似)
+    // ホーム位置は本線⇔待避線の中間(RailProfile.PlatformMid、複線分離後の実オフセット))
     public static GameObject BuildSakurajosuiStation(KeioData.Segment seg, RailProfile profile,
         Material platformMat, Material canopyMat, Material wallMat, Material glassMat, Material roofMat)
     {
@@ -150,7 +213,7 @@ public static class RailBuilder
 
         const float platformLen = 210f; // 10両編成対応(実物と同じ全長)
         const float platformHalfW = 1.5f, canopyHalfW = 2.7f;
-        const float platformLift = 1.0f, canopyLift = 4.4f, sideOffset = 7f;
+        const float platformLift = 1.0f, canopyLift = 4.4f;
         int n = 40;
         foreach (float side in new[] { 1f, -1f })
         {
@@ -160,10 +223,8 @@ public static class RailBuilder
             {
                 float u = uStn - platformLen * 0.5f / profile.TotalLen + platformLen / profile.TotalLen * i / n;
                 if (u < 0f || u > 1f) continue;
-                var pos2 = profile.PositionAt(u);
-                var rot = RotFromTangent(profile.TangentAt(u));
-                Vector3 lateral = rot * Vector3.right;
-                var basePos = new Vector3(pos2.x, profile.RailY(u), -pos2.y) + lateral * (sideOffset * side);
+                var pos2 = profile.PositionAt(u) + NormalAt(profile, u) * (profile.PlatformMid(u) * side);
+                var basePos = new Vector3(pos2.x, profile.RailY(u), -pos2.y);
                 slabPts.Add(basePos + Vector3.up * platformLift);
                 roofPts.Add(basePos + Vector3.up * canopyLift);
             }

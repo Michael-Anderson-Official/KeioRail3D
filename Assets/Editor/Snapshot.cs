@@ -28,7 +28,9 @@ public static class Snapshot
         RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.5f);
 
         var terrainMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain.mat");
+        var ballastMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Ballast.mat");
         var railMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Rail.mat");
+        var tieMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Tie.mat");
         var embankMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Embankment.mat");
         var deckMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Deck.mat");
         var pierMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Pier.mat");
@@ -39,7 +41,7 @@ public static class Snapshot
         var stnRoofMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/StationRoof.mat");
         var root = new GameObject("SnapshotRoot");
         TerrainBuilder.Build(grid, terrainMat).transform.SetParent(root.transform, false);
-        RailBuilder.Build(seg, profile, railMat).transform.SetParent(root.transform, false);
+        RailBuilder.BuildTracks(profile, ballastMat, railMat, tieMat).transform.SetParent(root.transform, false);
         RailBuilder.BuildViaduct(seg, grid, profile, embankMat, deckMat, pierMat)
             ?.transform.SetParent(root.transform, false);
         RailBuilder.BuildSakurajosuiStation(seg, profile, platformMat, canopyMat, stnWallMat, stnGlassMat, stnRoofMat)
@@ -91,6 +93,7 @@ public static class Snapshot
         Shot(outDir, "overview.png", UnityPos("sakurajosui"), 2200f, 45f, 200f);
         Shot(outDir, "sakurajosui_station.png", UnityPos("sakurajosui"), 120f, 20f, 250f);
         Shot(outDir, "hachimanyama.png", UnityPos("hachimanyama"), 350f, 25f, 160f);
+        Shot(outDir, "kamikitazawa.png", UnityPos("kamikitazawa"), 180f, 20f, 200f);
         Shot(outDir, "shimotakaido.png", UnityPos("shimotakaido"), 350f, 25f, 200f);
         Shot(outDir, "viaduct_ramp.png", RampView(), 220f, 15f, 250f);
         // 診断: OrbitCameraの初期値(SceneSetup生成時のtarget/distance/pitch/yaw)そのままで見えるか

@@ -35,7 +35,9 @@ public static class SceneSetup
         if (!AssetDatabase.IsValidFolder("Assets/Materials"))
             AssetDatabase.CreateFolder("Assets", "Materials");
         var terrainMat = MakeMat("Assets/Materials/Terrain.mat", new Color(0.55f, 0.63f, 0.45f));
-        var railMat = MakeMat("Assets/Materials/Rail.mat", new Color(0.35f, 0.35f, 0.38f));
+        var ballastMat = MakeMat("Assets/Materials/Ballast.mat", new Color(0.541f, 0.514f, 0.471f));
+        var railMat = MakeMat("Assets/Materials/Rail.mat", new Color(0.353f, 0.373f, 0.400f), metallic: 0.8f, smoothness: 0.6f);
+        var tieMat = MakeMat("Assets/Materials/Tie.mat", new Color(0.420f, 0.345f, 0.259f));
         var trainMat = MakeMat("Assets/Materials/Train.mat", new Color(0.85f, 0.15f, 0.35f)); // 京王れーるカラー(仮)
         var embankMat = MakeMat("Assets/Materials/Embankment.mat", new Color(0.549f, 0.498f, 0.388f));
         var deckMat = MakeMat("Assets/Materials/Deck.mat", new Color(0.604f, 0.604f, 0.573f));
@@ -49,7 +51,9 @@ public static class SceneSetup
         var bootGo = new GameObject("SceneBootstrap");
         var boot = bootGo.AddComponent<SceneBootstrap>();
         boot.terrainMaterial = terrainMat;
+        boot.ballastMaterial = ballastMat;
         boot.railMaterial = railMat;
+        boot.tieMaterial = tieMat;
         boot.trainMaterial = trainMat;
         boot.embankmentMaterial = embankMat;
         boot.deckMaterial = deckMat;
