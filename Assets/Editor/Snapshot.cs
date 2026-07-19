@@ -14,6 +14,7 @@ public static class Snapshot
     static Task loadTask;
     static KeioData.Segment seg;
     static KeioData.TerrainGrid grid;
+    static RailProfile profile;
     static double t0;
 
     public static void Run()
@@ -21,15 +22,21 @@ public static class Snapshot
         EditorSceneManager.OpenScene("Assets/Scenes/Main.unity");
         seg = KeioData.LoadSegment().Result;   // Editorでは File IO なので同期完了する
         grid = KeioData.LoadTerrain().Result;
+        profile = RailProfile.Build(seg, grid);
 
         RenderSettings.ambientMode = AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.5f);
 
         var terrainMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Terrain.mat");
         var railMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Rail.mat");
+        var embankMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Embankment.mat");
+        var deckMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Deck.mat");
+        var pierMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Pier.mat");
         var root = new GameObject("SnapshotRoot");
         TerrainBuilder.Build(grid, terrainMat).transform.SetParent(root.transform, false);
-        RailBuilder.Build(seg, grid, railMat).transform.SetParent(root.transform, false);
+        RailBuilder.Build(seg, profile, railMat).transform.SetParent(root.transform, false);
+        RailBuilder.BuildViaduct(seg, grid, profile, embankMat, deckMat, pierMat)
+            ?.transform.SetParent(root.transform, false);
         var plateauRoot = new GameObject("PlateauTiles");
         plateauRoot.transform.SetParent(root.transform, false);
 
@@ -73,10 +80,11 @@ public static class Snapshot
             Shot(outDir, "plateau_bounds.png", b.center, Mathf.Max(b.size.x, b.size.z) * 0.9f, 45f, 200f);
         }
 
-        // 視点: 全景 / 八幡山(高架区間)近景 / 下高井戸近景
+        // 視点: 全景 / 八幡山(高架区間)近景 / 下高井戸近景 / ランプ〜高架の遷移部
         Shot(outDir, "overview.png", UnityPos("sakurajosui"), 2200f, 45f, 200f);
         Shot(outDir, "hachimanyama.png", UnityPos("hachimanyama"), 350f, 25f, 160f);
         Shot(outDir, "shimotakaido.png", UnityPos("shimotakaido"), 350f, 25f, 200f);
+        Shot(outDir, "viaduct_ramp.png", RampView(), 220f, 15f, 250f);
 
         Debug.Log("Snapshot: done");
         EditorApplication.Exit(0);
@@ -86,6 +94,13 @@ public static class Snapshot
     {
         Vector2 p = seg.stations[station]; // three系 [x, zSouth]
         return new Vector3(p.x, grid.HeightAt(p.x, p.y) + 10f, -p.y);
+    }
+
+    static Vector3 RampView()
+    {
+        float uMid = (profile.URampStart + profile.URampEnd) * 0.5f;
+        var p = profile.PositionAt(uMid);
+        return new Vector3(p.x, profile.RailY(uMid), -p.y);
     }
 
     static void Shot(string dir, string name, Vector3 target, float dist, float pitch, float yaw)
