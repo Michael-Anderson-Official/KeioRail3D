@@ -72,12 +72,13 @@ public class TrainMover : MonoBehaviour
     }
 }
 
-// ドラッグ(1本指)で回転・ホイール/ピンチでズームの簡易オービットカメラ
+// 1本指ドラッグ=回転、2本指ドラッグ=パン(移動)、ピンチ/ホイール=ズームの簡易オービットカメラ
 public class OrbitCamera : MonoBehaviour
 {
     public Vector3 target = new(0, 45, 0);
     public float distance = 500f;
     public float yaw = 200f, pitch = 45f;
+    Vector3 lastMousePos;
 
     void Update()
     {
@@ -99,14 +100,33 @@ public class OrbitCamera : MonoBehaviour
             float cur = (t0.position - t1.position).magnitude;
             float prev = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
             if (cur > 1f) distance = Mathf.Clamp(distance * (prev / cur), 30f, 3000f);
+
+            // 2本指の平行移動でパン(地面を指で引きずる感覚。八幡山など別の場所へ移動する手段はこれのみ)
+            Pan((t0.deltaPosition + t1.deltaPosition) * 0.5f);
+        }
+        else if (Input.GetMouseButton(1)) // 右ドラッグでパン(PC)
+        {
+            Pan((Vector2)Input.mousePosition - (Vector2)lastMousePos);
         }
         else if (Input.GetMouseButton(0))
         {
             yaw += Input.GetAxis("Mouse X") * 3f;
             pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * 3f, 5f, 89f);
         }
+        lastMousePos = Input.mousePosition;
+
         distance = Mathf.Clamp(distance * (1f - Input.mouseScrollDelta.y * 0.1f), 30f, 3000f);
         var rot = Quaternion.Euler(pitch, yaw, 0);
         transform.SetPositionAndRotation(target + rot * new Vector3(0, 0, -distance), rot);
+    }
+
+    void Pan(Vector2 screenDelta)
+    {
+        var yawRot = Quaternion.Euler(0, yaw, 0);
+        Vector3 right = yawRot * Vector3.right;
+        Vector3 fwdFlat = yawRot * Vector3.forward;
+        float scale = distance * 0.0015f; // 見下ろす距離が遠いほど1ピクセルあたりの移動量を大きく
+        target -= right * screenDelta.x * scale;
+        target -= fwdFlat * screenDelta.y * scale;
     }
 }
