@@ -53,6 +53,9 @@ public static class WebGLBuild
             "    <meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\n" +
             "    <meta name=\"apple-mobile-web-app-status-bar-style\" content=\"default\">\n" +
             "    <meta name=\"apple-mobile-web-app-title\" content=\"京王線3D\">\n" +
+            // touch-action:none がないとSafariがドラッグ/ピンチをページのパン・ズーム
+            // ジェスチャーとして横取りし、Canvas側のOrbitCameraに届かなくなる
+            "    <style>#unity-canvas{touch-action:none}body{overscroll-behavior:none}</style>\n" +
             "    <link rel=\"stylesheet\"";
         html = html.Replace("<link rel=\"stylesheet\"", headExtra);
         System.IO.File.WriteAllText(htmlPath, html);

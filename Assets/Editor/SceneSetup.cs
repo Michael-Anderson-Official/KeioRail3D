@@ -21,7 +21,16 @@ public static class SceneSetup
         camGo.AddComponent<AudioListener>();
         camGo.tag = "MainCamera";
         cam.farClipPlane = 8000f;
-        camGo.AddComponent<OrbitCamera>();
+        var orbit = camGo.AddComponent<OrbitCamera>();
+
+        // 初期視点は仮の(0,45,0)ではなく実データ(桜上水付近を見渡す構図)から決める。
+        // Editorではデータ読み込みが同期完了するので、Snapshot.csのoverview.pngと同じ
+        // 「路線全体+街並みを見渡せる」構図をそのまま初期カメラに採用する
+        var seg = KeioData.LoadSegment().Result;
+        var grid = KeioData.LoadTerrain().Result;
+        Vector2 sakura = seg.stations["sakurajosui"];
+        orbit.target = new Vector3(sakura.x, grid.HeightAt(sakura.x, sakura.y) + 10f, -sakura.y);
+        orbit.distance = 2200f;
 
         if (!AssetDatabase.IsValidFolder("Assets/Materials"))
             AssetDatabase.CreateFolder("Assets", "Materials");

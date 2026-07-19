@@ -85,6 +85,10 @@ public static class Snapshot
         Shot(outDir, "hachimanyama.png", UnityPos("hachimanyama"), 350f, 25f, 160f);
         Shot(outDir, "shimotakaido.png", UnityPos("shimotakaido"), 350f, 25f, 200f);
         Shot(outDir, "viaduct_ramp.png", RampView(), 220f, 15f, 250f);
+        // 診断: OrbitCameraの初期値(SceneSetup生成時のtarget/distance/pitch/yaw)そのままで見えるか
+        var orbitGo = GameObject.Find("Main Camera")?.GetComponent<OrbitCamera>();
+        if (orbitGo != null)
+            Shot(outDir, "initial_camera.png", orbitGo.target, orbitGo.distance, orbitGo.pitch, orbitGo.yaw);
 
         Debug.Log("Snapshot: done");
         EditorApplication.Exit(0);
