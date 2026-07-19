@@ -1,0 +1,11 @@
+{
+  "name": "京王線3D",
+  "short_name": "京王線3D",
+  "display": "standalone",
+  "background_color": "#9ec4ec",
+  "theme_color": "#e4007f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
