@@ -40,6 +40,11 @@ public static class SceneSetup
         var embankMat = MakeMat("Assets/Materials/Embankment.mat", new Color(0.549f, 0.498f, 0.388f));
         var deckMat = MakeMat("Assets/Materials/Deck.mat", new Color(0.604f, 0.604f, 0.573f));
         var pierMat = MakeMat("Assets/Materials/Pier.mat", new Color(0.529f, 0.525f, 0.494f));
+        var platformMat = MakeMat("Assets/Materials/StationPlatform.mat", new Color(0.847f, 0.824f, 0.769f));
+        var canopyMat = MakeMat("Assets/Materials/StationCanopy.mat", new Color(0.227f, 0.290f, 0.353f));
+        var stnWallMat = MakeMat("Assets/Materials/StationWall.mat", new Color(0.910f, 0.886f, 0.839f));
+        var stnGlassMat = MakeMat("Assets/Materials/StationGlass.mat", new Color(0.624f, 0.769f, 0.847f), metallic: 0.4f, smoothness: 0.7f);
+        var stnRoofMat = MakeMat("Assets/Materials/StationRoof.mat", new Color(0.251f, 0.333f, 0.416f));
 
         var bootGo = new GameObject("SceneBootstrap");
         var boot = bootGo.AddComponent<SceneBootstrap>();
@@ -49,6 +54,11 @@ public static class SceneSetup
         boot.embankmentMaterial = embankMat;
         boot.deckMaterial = deckMat;
         boot.pierMaterial = pierMat;
+        boot.platformMaterial = platformMat;
+        boot.canopyMaterial = canopyMat;
+        boot.stationWallMaterial = stnWallMat;
+        boot.stationGlassMaterial = stnGlassMat;
+        boot.stationRoofMaterial = stnRoofMat;
 
         if (!AssetDatabase.IsValidFolder("Assets/Scenes"))
             AssetDatabase.CreateFolder("Assets", "Scenes");
@@ -59,11 +69,13 @@ public static class SceneSetup
         EditorApplication.Exit(0);
     }
 
-    static Material MakeMat(string path, Color color)
+    static Material MakeMat(string path, Color color, float metallic = 0f, float smoothness = 0.5f)
     {
         var shader = Shader.Find("Universal Render Pipeline/Lit");
         var mat = new Material(shader);
         mat.SetColor("_BaseColor", color);
+        mat.SetFloat("_Metallic", metallic);
+        mat.SetFloat("_Smoothness", smoothness);
         AssetDatabase.CreateAsset(mat, path);
         return mat;
     }

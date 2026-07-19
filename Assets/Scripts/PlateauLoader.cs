@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using GLTFast;
 using UnityEngine;
@@ -30,6 +31,8 @@ public static class PlateauLoader
             new Vector3((float)(-cosLo), (float)(-cosLa * sinLo), (float)(sinLa * sinLo)),
             new Vector3(0f, (float)sinLa, (float)cosLa));
 
+        var corridor = BuildCorridor(seg);
+
         foreach (var tile in await KeioData.LoadPlateauManifest())
         {
             // UninterruptedDeferAgent: 起動時一括ロードなのでフレーム分割不要(Editorバッチでも動く)
@@ -57,6 +60,70 @@ public static class PlateauLoader
             float groundY = grid.HeightAt(east, zSouth);
             root.transform.SetLocalPositionAndRotation(
                 new Vector3(east, up + groundY - tile.groundHeight, north), rot);
+
+            RemoveCorridorVertices(root, corridor);
+        }
+    }
+
+    // 線路中心線を8m間隔でサンプルした点列(Unity平面 x,zNorth)。
+    // 線路帯13m以内に重なるPLATEAU建物(実在の駅舎等)の除去に使う(game.js paintTileの移植)。
+    static List<Vector2> BuildCorridor(KeioData.Segment seg)
+    {
+        var pts = new List<Vector2>();
+        var p = seg.points;
+        for (int i = 1; i < p.Count; i++)
+        {
+            Vector2 a = p[i - 1], b = p[i];
+            float d = Vector2.Distance(a, b);
+            int n = Mathf.Max(1, Mathf.CeilToInt(d / 8f));
+            for (int k = 0; k < n; k++)
+                pts.Add(ToUnityXZ(Vector2.Lerp(a, b, (float)k / n)));
+        }
+        pts.Add(ToUnityXZ(p[^1]));
+        return pts;
+    }
+
+    static Vector2 ToUnityXZ(Vector2 threePoint) => new(threePoint.x, -threePoint.y);
+
+    const float CorridorRadius = 13f; // buildings.js生成時(gen_map.mjs)のCORRIDOR=13mと揃える
+
+    // 建物の頂点を1つずつ判定し、線路帯にかかる頂点を地下へ沈めて視覚的に消す
+    // (_BATCHIDによる建物単位のグループ化はglTFastが非標準属性を保持しないため断念。
+    // 実在駅舎のように大半の頂点が線路帯上にある建物ではこれで十分に消える)
+    static void RemoveCorridorVertices(GameObject tileRoot, List<Vector2> corridor)
+    {
+        float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
+        foreach (var c in corridor)
+        {
+            if (c.x < minX) minX = c.x; if (c.x > maxX) maxX = c.x;
+            if (c.y < minZ) minZ = c.y; if (c.y > maxZ) maxZ = c.y;
+        }
+        minX -= CorridorRadius; maxX += CorridorRadius; minZ -= CorridorRadius; maxZ += CorridorRadius;
+        float r2 = CorridorRadius * CorridorRadius;
+
+        foreach (var mf in tileRoot.GetComponentsInChildren<MeshFilter>())
+        {
+            var mesh = mf.sharedMesh;
+            if (mesh == null) continue;
+            var verts = mesh.vertices;
+            var mtx = mf.transform.localToWorldMatrix;
+            Vector3 sinkLocal = mf.transform.InverseTransformPoint(mf.transform.position + Vector3.down * 500f);
+            bool changed = false;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                Vector3 world = mtx.MultiplyPoint3x4(verts[i]);
+                if (world.x < minX || world.x > maxX || world.z < minZ || world.z > maxZ) continue;
+                for (int c = 0; c < corridor.Count; c++)
+                {
+                    float dx = world.x - corridor[c].x, dz = world.z - corridor[c].y;
+                    if (dx * dx + dz * dz < r2) { verts[i] = sinkLocal; changed = true; break; }
+                }
+            }
+            if (changed)
+            {
+                mesh.vertices = verts;
+                mesh.RecalculateBounds();
+            }
         }
     }
 

@@ -70,6 +70,8 @@ public class RailProfile
         return Vector2.Lerp(pts[i], pts[i + 1], t);
     }
 
+    public float NearestU(Vector2 target) => NearestU(pts, cum, totalLen, target);
+
     public Vector2 TangentAt(float u)
     {
         float eps = 2f / TotalLen;

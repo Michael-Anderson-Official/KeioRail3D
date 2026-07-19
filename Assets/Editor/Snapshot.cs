@@ -32,11 +32,18 @@ public static class Snapshot
         var embankMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Embankment.mat");
         var deckMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Deck.mat");
         var pierMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Pier.mat");
+        var platformMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/StationPlatform.mat");
+        var canopyMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/StationCanopy.mat");
+        var stnWallMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/StationWall.mat");
+        var stnGlassMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/StationGlass.mat");
+        var stnRoofMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/StationRoof.mat");
         var root = new GameObject("SnapshotRoot");
         TerrainBuilder.Build(grid, terrainMat).transform.SetParent(root.transform, false);
         RailBuilder.Build(seg, profile, railMat).transform.SetParent(root.transform, false);
         RailBuilder.BuildViaduct(seg, grid, profile, embankMat, deckMat, pierMat)
             ?.transform.SetParent(root.transform, false);
+        RailBuilder.BuildSakurajosuiStation(seg, profile, platformMat, canopyMat, stnWallMat, stnGlassMat, stnRoofMat)
+            .transform.SetParent(root.transform, false);
         var plateauRoot = new GameObject("PlateauTiles");
         plateauRoot.transform.SetParent(root.transform, false);
 
@@ -80,8 +87,9 @@ public static class Snapshot
             Shot(outDir, "plateau_bounds.png", b.center, Mathf.Max(b.size.x, b.size.z) * 0.9f, 45f, 200f);
         }
 
-        // 視点: 全景 / 八幡山(高架区間)近景 / 下高井戸近景 / ランプ〜高架の遷移部
+        // 視点: 全景 / 八幡山(高架区間)近景 / 下高井戸近景 / ランプ〜高架の遷移部 / 桜上水駅舎近景
         Shot(outDir, "overview.png", UnityPos("sakurajosui"), 2200f, 45f, 200f);
+        Shot(outDir, "sakurajosui_station.png", UnityPos("sakurajosui"), 120f, 20f, 250f);
         Shot(outDir, "hachimanyama.png", UnityPos("hachimanyama"), 350f, 25f, 160f);
         Shot(outDir, "shimotakaido.png", UnityPos("shimotakaido"), 350f, 25f, 200f);
         Shot(outDir, "viaduct_ramp.png", RampView(), 220f, 15f, 250f);

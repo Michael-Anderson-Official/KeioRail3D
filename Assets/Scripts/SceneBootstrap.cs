@@ -10,6 +10,11 @@ public class SceneBootstrap : MonoBehaviour
     public Material embankmentMaterial;
     public Material deckMaterial;
     public Material pierMaterial;
+    public Material platformMaterial;
+    public Material canopyMaterial;
+    public Material stationWallMaterial;
+    public Material stationGlassMaterial;
+    public Material stationRoofMaterial;
 
     async void Start()
     {
@@ -21,6 +26,8 @@ public class SceneBootstrap : MonoBehaviour
         RailBuilder.Build(seg, profile, railMaterial).transform.SetParent(transform, false);
         RailBuilder.BuildViaduct(seg, grid, profile, embankmentMaterial, deckMaterial, pierMaterial)
             ?.transform.SetParent(transform, false);
+        RailBuilder.BuildSakurajosuiStation(seg, profile, platformMaterial, canopyMaterial,
+            stationWallMaterial, stationGlassMaterial, stationRoofMaterial).transform.SetParent(transform, false);
 
         // 列車(仮: 20m×2.8m×3.5mの箱)
         var path = RailBuilder.ResampledPath(seg, profile);
