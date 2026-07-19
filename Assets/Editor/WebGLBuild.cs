@@ -35,6 +35,11 @@ public static class WebGLBuild
             System.IO.File.Copy(f, System.IO.Path.Combine(iconsOut, System.IO.Path.GetFileName(f)), true);
         System.IO.File.Copy("WebIcons/manifest.webmanifest",
             System.IO.Path.Combine(outDir, "manifest.webmanifest"), true);
+        // iOSはサイト直下の apple-touch-icon.png も探しに行くのでフォールバックを置く
+        System.IO.File.Copy("WebIcons/icon-180.png",
+            System.IO.Path.Combine(outDir, "apple-touch-icon.png"), true);
+        System.IO.File.Copy("WebIcons/icon-180.png",
+            System.IO.Path.Combine(outDir, "apple-touch-icon-precomposed.png"), true);
 
         var htmlPath = System.IO.Path.Combine(outDir, "index.html");
         var html = System.IO.File.ReadAllText(htmlPath);
