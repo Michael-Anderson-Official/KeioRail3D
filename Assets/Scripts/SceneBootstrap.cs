@@ -72,7 +72,7 @@ public class TrainMover : MonoBehaviour
     }
 }
 
-// 1本指ドラッグ=回転、2本指ドラッグ=パン(移動)、ピンチ/ホイール=ズームの簡易オービットカメラ
+// 1本指ドラッグ=パン(移動)、2本指ドラッグ=回転、ピンチ/ホイール=ズームの簡易オービットカメラ
 public class OrbitCamera : MonoBehaviour
 {
     public Vector3 target = new(0, 45, 0);
@@ -83,15 +83,11 @@ public class OrbitCamera : MonoBehaviour
     void Update()
     {
         // タッチは実タッチのdeltaPositionを直接使う(WebGLのタッチ→マウス疑似入力は
-        // ブラウザ実装依存で感度が暴れやすく、1本指ドラッグの操作感が破綻する原因になる)
+        // ブラウザ実装依存で感度が暴れやすく、ドラッグの操作感が破綻する原因になる)
         if (Input.touchCount == 1)
         {
             var t = Input.GetTouch(0);
-            if (t.phase == TouchPhase.Moved)
-            {
-                yaw += t.deltaPosition.x * 0.15f;
-                pitch = Mathf.Clamp(pitch - t.deltaPosition.y * 0.15f, 5f, 89f);
-            }
+            if (t.phase == TouchPhase.Moved) Pan(t.deltaPosition);
         }
         else if (Input.touchCount >= 2)
         {
@@ -101,8 +97,10 @@ public class OrbitCamera : MonoBehaviour
             float prev = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
             if (cur > 1f) distance = Mathf.Clamp(distance * (prev / cur), 30f, 3000f);
 
-            // 2本指の平行移動でパン(地面を指で引きずる感覚。八幡山など別の場所へ移動する手段はこれのみ)
-            Pan((t0.deltaPosition + t1.deltaPosition) * 0.5f);
+            // 2本指の平行移動で回転
+            var avg = (t0.deltaPosition + t1.deltaPosition) * 0.5f;
+            yaw += avg.x * 0.15f;
+            pitch = Mathf.Clamp(pitch - avg.y * 0.15f, 5f, 89f);
         }
         else if (Input.GetMouseButton(1)) // 右ドラッグでパン(PC)
         {
