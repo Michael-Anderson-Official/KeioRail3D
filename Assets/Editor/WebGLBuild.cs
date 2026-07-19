@@ -8,6 +8,7 @@ public static class WebGLBuild
 {
     public static void Run()
     {
+        GltfShaderSetup.Configure(); // PLATEAU建物のglTFシェーダーがストリッピングで消えないよう毎回確認
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
         PlayerSettings.WebGL.decompressionFallback = true;
         PlayerSettings.runInBackground = true;
