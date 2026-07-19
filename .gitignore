@@ -22,3 +22,8 @@ Thumbs.db
 
 # バッチ検証の出力(生成物)
 /Snapshots/
+
+# WebGLビルド時に自動生成されるテストフレームワークの残骸
+/Assets/Resources/PerformanceTestRun*.json*
+/Assets/Resources/PerformanceTestRun*.json.meta
+/Assets/Resources.meta
